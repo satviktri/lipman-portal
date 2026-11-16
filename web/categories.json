@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "revision": "2026-11-16",
+  "categories": [],
+  "views": [
+    {
+      "id": "all-teams",
+      "name": "All teams",
+      "filters": {},
+      "group": "team"
+    },
+    {
+      "id": "sdg-education",
+      "name": "Education · SDG 4",
+      "filters": {
+        "sdg": [
+          "4"
+        ]
+      },
+      "group": "team"
+    },
+    {
+      "id": "ratings-pending",
+      "name": "Awaiting team ratings",
+      "filters": {
+        "rating": [
+          "Pending"
+        ]
+      },
+      "group": "team"
+    },
+    {
+      "id": "team-0",
+      "name": "COACT",
+      "filters": {
+        "team": [
+          "COACT"
+        ]
+      },
+      "group": ""
+    },
+    {
+      "id": "team-1",
+      "name": "Kite & Key",
+      "filters": {
+        "team": [
+          "Kite & Key"
+        ]
+      },
+      "group": ""
+    },
+    {
+      "id": "team-2",
+      "name": "Achievers - SEOAS",
+      "filters": {
+        "team": [
+          "Achievers - SEOAS"
+        ]
+      },
+      "group": ""
+    },
+    {
+      "id": "team-3",
+      "name": "MILAA",
+      "filters": {
+        "team": [
+          "MILAA"
+        ]
+      },
+      "group": ""
+    }
+  ]
+}
