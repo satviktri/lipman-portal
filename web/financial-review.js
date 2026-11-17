@@ -1,0 +1,26 @@
+/* Transparent screening rules, not an AI model, rating, or selection decision. */
+(function(root){
+const finite=v=>typeof v==='number'&&Number.isFinite(v),sub=(a,b)=>finite(a)&&finite(b)?a-b:null,ratio=(a,b)=>finite(a)&&finite(b)&&b>0?a/b:null;
+const labels=['Deficit','Revenue decline','Expense pressure','Net assets declining','Low net-asset coverage','Funding concentration','Reconciliation','Missing data'];
+function analyze(o){
+ const f=o.fin,get=(g,k,y)=>finite(f[g]?.[k]?.[y])?f[g][k][y]:null;
+ const m={};for(let y=0;y<2;y++){const s=y===0?'24':'25';m['revenue'+s]=get('rev','Total',y);m['expenses'+s]=get('exp','Total',y);m['surplus'+s]=sub(m['revenue'+s],m['expenses'+s]);m['margin'+s]=ratio(m['surplus'+s],m['revenue'+s]);m['netAssets'+s]=get('na','Total',y);m['unrestricted'+s]=get('na','Unrestricted',y);m['restricted'+s]=get('na','Restricted',y);m['coverage'+s]=ratio(m['unrestricted'+s],m['expenses'+s]);if(m['coverage'+s]!==null)m['coverage'+s]*=12;}
+ for(const k of ['revenue','expenses','surplus','netAssets','unrestricted','restricted']){m[k+'Change']=sub(m[k+'25'],m[k+'24']);m[k+'Growth']=ratio(m[k+'Change'],m[k+'24']);}
+ m.marginChange=sub(m.margin25,m.margin24);m.assetSurplusDifference=sub(m.netAssetsChange,m.surplus25);
+ m.grantShare=ratio(get('rev','Grants/Contributions/In-Kind',1),m.revenue25);
+ const alerts=[],add=(category,title,evidence,rule,question)=>alerts.push({category,title,evidence,rule,question});
+ const dollars=n=>finite(n)?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n):'Not supplied';
+ const percent=n=>finite(n)?(n*100).toFixed(1)+'%':'Not available';
+ if(m.surplus25!==null&&m.surplus25<0)add('Deficit',m.surplus24<0?'Deficits in both supplied years':'FY25 deficit',`FY24: ${dollars(m.surplus24)}; FY25: ${dollars(m.surplus25)}. FY25 margin: ${percent(m.margin25)}.`,'Reported revenue minus reported expenses is below zero.','Was the deficit planned, and how was it financed?');
+ if(m.revenueGrowth!==null&&m.revenueGrowth<=-.15)add('Revenue decline','Revenue fell at least 15%',`${dollars(m.revenue24)} → ${dollars(m.revenue25)} (${percent(m.revenueGrowth)}).`,'FY25 revenue is at least 15% below FY24, with a positive FY24 baseline.','Did a one-time grant end, or is recurring funding weakening?');
+ if(m.expensesGrowth!==null&&m.revenueGrowth!==null&&m.expensesGrowth-m.revenueGrowth>=.10)add('Expense pressure','Expense growth outpaced revenue',`Expenses: ${percent(m.expensesGrowth)}; revenue: ${percent(m.revenueGrowth)}.`,'Expense growth exceeds revenue growth by at least 10 percentage points.','Is this a planned investment, timing difference, or ongoing cost pressure?');
+ if(m.netAssetsChange!==null&&m.netAssetsChange<0)add('Net assets declining','Total net assets declined',`${dollars(m.netAssets24)} → ${dollars(m.netAssets25)}; change ${dollars(m.netAssetsChange)}.`,'FY25 total net assets are below FY24.','What explains the reduction, and how much is restricted or noncash?');
+ if(m.coverage25!==null&&m.coverage25<3)add('Low net-asset coverage','Under three months of net-asset coverage',`${m.coverage25.toFixed(1)} months using ${dollars(m.unrestricted25)} unrestricted net assets and ${dollars(m.expenses25)} annual expenses.`,'Unrestricted net assets ÷ (annual expenses ÷ 12) is below 3. This is not cash runway.','How much unrestricted cash is available, and what is the timing of receipts and commitments?');
+ if(m.grantShare!==null&&m.grantShare>=.95)add('Funding concentration','At least 95% from grants / contributions',`${percent(m.grantShare)} of FY25 revenue is reported in grants, contributions, and in-kind support.`,'Grants / contributions / in-kind ÷ total revenue is at least 95%. This does not measure donor concentration.','How diversified and renewable are the underlying funding sources?');
+ for(let y=0;y<2;y++)for(const g of ['rev','exp','na']){const entries=Object.entries(f[g]||{}).filter(([k])=>k!=='Total'),total=get(g,'Total',y);if(entries.length&&entries.every(([,v])=>finite(v[y]))&&finite(total)){const sum=entries.reduce((s,[,v])=>s+v[y],0),delta=sum-total,tolerance=Math.max(1,Math.abs(total)*.001);if(Math.abs(delta)>tolerance)add('Reconciliation',`FY${y?25:24} ${g==='rev'?'revenue':g==='exp'?'expenses':'net assets'} components differ from total`,`Components: ${dollars(sum)}; supplied total: ${dollars(total)}; difference: ${dollars(delta)}.`,'Difference exceeds the larger of $1 or 0.1% of the supplied total. Values are not corrected.','Check the source statement for omitted categories, units, rounding, or transcription differences.');}}
+ const missing=[];for(const [g,group] of Object.entries({rev:'revenue',exp:'expenses',na:'net assets'}))for(const [k,v] of Object.entries(f[g]||{}))for(let y=0;y<2;y++)if(!finite(v[y]))missing.push(`FY${y?25:24} ${group}: ${k}`);
+ if(missing.length)add('Missing data','Some financial inputs are missing',missing.join('; '),'At least one supplied annual amount is blank or unavailable; blanks are never treated as zero.','Request the missing amounts before relying on the affected ratios or trends.');
+ return{metrics:m,alerts,categories:[...new Set(alerts.map(a=>a.category))]};
+}
+root.FinancialReview={analyze,labels};if(typeof module!=='undefined')module.exports=root.FinancialReview;
+})(typeof window!=='undefined'?window:globalThis);
